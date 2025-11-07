@@ -49,7 +49,6 @@ export function StrategyDistributionChart({
                 `Z`,
               ].join(' ');
 
-              const colorClass = colors[index % colors.length];
               const isHovered = hoveredIndex === index;
 
               return (

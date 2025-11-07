@@ -91,6 +91,18 @@
     }
   }
 
+  /* 👇 NUEVA ANIMACIÓN PARA TOAST */
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
   .animate-float {
     animation: float 3s ease-in-out infinite;
   }
@@ -101,6 +113,11 @@
 
   .animate-celebrate {
     animation: celebrate 0.6s ease-in-out;
+  }
+
+  /* 👇 NUEVA CLASE PARA TOAST */
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
   }
 
   .shimmer {
