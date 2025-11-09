@@ -25,87 +25,117 @@ export function VaultDepositCard({
 
   const [amount, setAmount] = useState('');
   const [activeTab, setActiveTab] = useState<'deposit' | 'withdraw'>('deposit');
-  const [txStep, setTxStep] = useState<'idle' | 'approving' | 'depositing' | 'withdrawing'>('idle');
+  const [txStep, setTxStep] = useState<'idle' | 'approving' | 'executing'>('idle');
 
-  const { writeContract: approve, data: approveHash } = useWriteContract();
-  const { writeContract: deposit, data: depositHash } = useWriteContract();
-  const { writeContract: withdraw, data: withdrawHash } = useWriteContract();
+  // Approve USDC
+  const { writeContract: writeApprove, data: approveHash, error: approveError } = useWriteContract();
+  
+  // Deposit to Vault
+  const { writeContract: writeDeposit, data: depositHash, error: depositError } = useWriteContract();
+  
+  // Withdraw from Vault
+  const { writeContract: writeWithdraw, data: withdrawHash, error: withdrawError } = useWriteContract();
 
-  const { isLoading: isApproving } = useWaitForTransactionReceipt({ hash: approveHash });
-  const { isLoading: isDepositing, isSuccess: isDepositSuccess } = useWaitForTransactionReceipt({ hash: depositHash });
-  const { isLoading: isWithdrawing, isSuccess: isWithdrawSuccess } = useWaitForTransactionReceipt({ hash: withdrawHash });
+  // Wait for approve
+  const { isLoading: isApproving, isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({ 
+    hash: approveHash 
+  });
+  
+  // Wait for deposit
+  const { isLoading: isDepositing, isSuccess: isDepositSuccess } = useWaitForTransactionReceipt({ 
+    hash: depositHash 
+  });
+  
+  // Wait for withdraw
+  const { isLoading: isWithdrawing, isSuccess: isWithdrawSuccess } = useWaitForTransactionReceipt({ 
+    hash: withdrawHash 
+  });
 
-  const handleDeposit = async () => {
-    if (!amount || !address) return;
+  // Handle deposit flow
+  const handleDeposit = () => {
+    if (!amount || !address || parseFloat(amount) <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
 
+    console.log('Starting deposit for:', amount, 'USDC');
+    setTxStep('approving');
+    
     try {
-      setTxStep('approving');
-      
-      approve({
+      writeApprove({
         address: CONTRACTS.sepolia.usdc,
         abi: USDCABI.abi,
         functionName: 'approve',
         args: [CONTRACTS.sepolia.vault, parseUnits(amount, 18)],
       });
     } catch (error) {
-      console.error('Approve failed:', error);
+      console.error('Approve error:', error);
       setTxStep('idle');
     }
   };
 
-  const handleDepositAfterApprove = async () => {
-    if (!amount || !address) return;
-
+  // Auto-execute deposit after approve
+  if (isApproveSuccess && txStep === 'approving') {
+    console.log('Approval successful, executing deposit...');
+    setTxStep('executing');
+    
     try {
-      setTxStep('depositing');
-      
-      deposit({
+      writeDeposit({
         address: CONTRACTS.sepolia.vault,
         abi: VaultABI.abi,
         functionName: 'deposit',
         args: [parseUnits(amount, 18), address],
       });
     } catch (error) {
-      console.error('Deposit failed:', error);
+      console.error('Deposit error:', error);
       setTxStep('idle');
     }
-  };
+  }
 
-  const handleWithdraw = async () => {
-    if (!amount || !address) return;
+  // Handle withdraw
+  const handleWithdraw = () => {
+    if (!amount || !address || parseFloat(amount) <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
 
+    console.log('Starting withdraw for:', amount, 'USDC');
+    setTxStep('executing');
+    
     try {
-      setTxStep('withdrawing');
-      
-      withdraw({
+      writeWithdraw({
         address: CONTRACTS.sepolia.vault,
         abi: VaultABI.abi,
         functionName: 'withdraw',
         args: [parseUnits(amount, 18), address, address],
       });
     } catch (error) {
-      console.error('Withdraw failed:', error);
+      console.error('Withdraw error:', error);
       setTxStep('idle');
     }
   };
 
-  // Auto-trigger después de approve
-  if (approveHash && !isApproving && txStep === 'approving') {
-    handleDepositAfterApprove();
+  // Reset on success
+  if (isDepositSuccess || isWithdrawSuccess) {
+    setTimeout(() => {
+      setAmount('');
+      setTxStep('idle');
+      refetchBalance();
+    }, 1000);
   }
 
-  // Reset después de éxito
-  if ((isDepositSuccess || isWithdrawSuccess) && txStep !== 'idle') {
-    setAmount('');
-    setTxStep('idle');
-    refetchBalance();
-  }
+  // Show errors
+  if (approveError) console.error('Approve error:', approveError);
+  if (depositError) console.error('Deposit error:', depositError);
+  if (withdrawError) console.error('Withdraw error:', withdrawError);
 
   const getButtonText = () => {
     if (!address) return 'Connect Wallet First';
-    if (txStep === 'approving' || isApproving) return 'Approving...';
-    if (txStep === 'depositing' || isDepositing) return 'Depositing...';
-    if (txStep === 'withdrawing' || isWithdrawing) return 'Withdrawing...';
+    if (isApproving) return 'Approving...';
+    if (isDepositing) return 'Depositing...';
+    if (isWithdrawing) return 'Withdrawing...';
+    if (txStep === 'approving') return 'Approving...';
+    if (txStep === 'executing') return activeTab === 'deposit' ? 'Depositing...' : 'Withdrawing...';
     return activeTab === 'deposit' ? 'Deposit' : 'Withdraw';
   };
 
@@ -207,16 +237,26 @@ export function VaultDepositCard({
             activeTab === 'deposit'
               ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
               : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
-          } text-white`}
+          } text-white flex items-center justify-center`}
         >
-          {(txStep !== 'idle') && <Loader2 className="w-4 h-4 inline mr-2 animate-spin" />}
+          {(txStep !== 'idle' || isApproving || isDepositing || isWithdrawing) && (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          )}
           {getButtonText()}
         </button>
 
         {(isDepositSuccess || isWithdrawSuccess) && (
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
             <p className="text-sm text-emerald-400">
-              ✅ Transaction successful! Your balance will update shortly.
+              Success! Transaction confirmed. Balance will update shortly.
+            </p>
+          </div>
+        )}
+
+        {(approveError || depositError || withdrawError) && (
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-sm text-red-400">
+              Transaction failed. Please try again or check console for details.
             </p>
           </div>
         )}
