@@ -16,6 +16,7 @@ import { EducationalModal } from './components/EducationalModal';
 import { ImpactFeed } from './components/ImpactFeed';
 import { GovernanceSection } from './components/GovernanceSection';
 import { MobileNav } from './components/MobileNav';
+import { LessonCard } from './components/LessonCard'; // ← NUEVO
 import { supabase } from './lib/supabase';
 import { useVaultData } from './hooks/useVaultData';
 import { useUserStats } from './hooks/useUserStats';
@@ -27,7 +28,7 @@ import type {
   ImpactEvent,
   GovernanceProposal,
 } from './lib/supabase';
-import { Coins } from 'lucide-react';
+import { Coins, GraduationCap } from 'lucide-react'; // ← Agregado GraduationCap
 
 const queryClient = new QueryClient()
 
@@ -51,6 +52,7 @@ function AppContent() {
   const [votedProposals, setVotedProposals] = useState<Set<string>>(new Set());
 
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const lessonsRef = useRef<HTMLDivElement>(null); // ← NUEVO
 
   const loadData = useCallback(async () => {
     const { data: strategiesData } = await supabase
@@ -111,6 +113,7 @@ function AppContent() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+  
   const scrollToDashboard = () => {
     dashboardRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -188,7 +191,7 @@ function AppContent() {
   const navigateToSection = (section: string) => {
     const sections: { [key: string]: HTMLElement | null } = {
       vault: dashboardRef.current,
-      learn: dashboardRef.current,
+      learn: lessonsRef.current, // ← ACTUALIZADO
       strategies: dashboardRef.current,
       impact: dashboardRef.current,
       governance: dashboardRef.current,
@@ -254,6 +257,63 @@ function AppContent() {
 
         <StrategyDistributionChart strategies={strategies} onLearnMore={handleLearnMore} />
 
+        {/* ========== NUEVA SECCIÓN: INTERACTIVE LESSONS ========== */}
+        <div ref={lessonsRef} className="space-y-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-gradient-to-br from-emerald-600 to-cyan-600 rounded-lg">
+              <GraduationCap className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Interactive Lessons</h2>
+              <p className="text-sm text-slate-400">Complete quizzes to earn NFT certificates</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Static lessons for demo */}
+            <LessonCard
+              lessonId={1}
+              title="Intro to Vaults"
+              description="Learn about ERC-4626 vaults and how they work"
+              difficulty="Beginner"
+              points={100}
+            />
+            
+            <LessonCard
+              lessonId={2}
+              title="Understanding Yield"
+              description="How yield generation works in DeFi protocols"
+              difficulty="Beginner"
+              points={100}
+            />
+            
+            <LessonCard
+              lessonId={3}
+              title="Lending Protocols"
+              description="Deep dive into Aave and Compound mechanics"
+              difficulty="Intermediate"
+              points={200}
+            />
+
+            <LessonCard
+              lessonId={4}
+              title="Public Goods Funding"
+              description="How your yield creates sustainable impact"
+              difficulty="Intermediate"
+              points={200}
+            />
+
+            <LessonCard
+              lessonId={5}
+              title="Advanced Strategies"
+              description="Optimize your portfolio for maximum impact"
+              difficulty="Advanced"
+              points={300}
+            />
+          </div>
+        </div>
+        {/* ========== FIN NUEVA SECCIÓN ========== */}
+
         <NFTCollectionGrid
           lessons={lessons}
           userProgress={userProgress}
@@ -270,7 +330,7 @@ function AppContent() {
           <div className="text-center text-slate-400 text-sm">
             <p className="mb-2 gradient-text font-semibold">DeFi Entiendo - Learn, Earn, and Fund Public Goods</p>
             <p className="text-xs text-slate-500">
-              Proof of Building - Made in Peru
+              Built for Octant DeFi Hackathon 2025 • Made with ❤️
             </p>
           </div>
         </div>
